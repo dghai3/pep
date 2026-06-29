@@ -10,6 +10,7 @@ models **once** so batch runs don't pay the load cost per image.
 
 from __future__ import annotations
 
+import gc
 from pathlib import Path
 from typing import Dict, List
 
@@ -83,23 +84,29 @@ class Pipeline:
             rgb_up, alpha_up = self.upscaler.upscale_rgba(
                 rgba_native[:, :, :3], rgba_native[:, :, 3], outscale
             )
+        del rgba_native, clean_rgb01
         rgba_up = np.dstack([rgb_up, alpha_up])
+        del rgb_up, alpha_up
 
         # --- Stage 3: fit to exact target size + export at DPI ---
         rgba_final = finalize(rgba_up, final_size)
+        del rgba_up
         if cfg.debug:
             debug_paths += self._write_debug(out_path, "2_upscaled", rgba_final)
 
         export(rgba_final, out_path, cfg)
 
+        out_w, out_h = rgba_final.shape[1], rgba_final.shape[0]
+        del rgba_final, rgb
+
         return {
             "input": str(in_path),
             "output": str(out_path),
             "native_size": (nw, nh),
-            "output_size": (rgba_final.shape[1], rgba_final.shape[0]),
+            "output_size": (out_w, out_h),
             "physical_inches": (
-                round(rgba_final.shape[1] / cfg.dpi, 3),
-                round(rgba_final.shape[0] / cfg.dpi, 3),
+                round(out_w / cfg.dpi, 3),
+                round(out_h / cfg.dpi, 3),
             ),
             "dpi": cfg.dpi,
             "used_existing_alpha": used_existing_alpha,
@@ -133,6 +140,14 @@ class Pipeline:
             except Exception as exc:  # keep going on a bad file
                 log.error("Failed on %s: %s", f.name, exc)
                 results.append({"input": str(f), "error": str(exc)})
+            finally:
+                gc.collect()
+                try:
+                    import torch
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                except Exception:
+                    pass
         return results
 
     # ------------------------------------------------------------------ #

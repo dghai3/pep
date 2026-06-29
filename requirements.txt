@@ -1,37 +1,36 @@
-# DTF print-prep pipeline - pinned dependencies
-# Tested with Python 3.10 / 3.11.  (basicsr/realesrgan can be fiddly on 3.12.)
+# DTF print-prep pipeline — Python 3.14 compatible
+# Tested with Python 3.14 on Windows x86_64.
 #
-# IMPORTANT - PyTorch install depends on your hardware. Do ONE of the following
-# BEFORE `pip install -r requirements.txt`, because the right torch wheel must
-# come from the right index:
+# IMPORTANT — PyTorch install depends on your hardware.
+# The old cu121 index has no Python 3.14 wheels; use cu126 for NVIDIA.
+# Do ONE of the following BEFORE `pip install -r requirements.txt`:
 #
-#   Windows / Linux + NVIDIA GPU (e.g. RTX 3070), CUDA 12.1:
-#     pip install torch==2.3.1 torchvision==0.18.1 --index-url https://download.pytorch.org/whl/cu121
+#   Windows / Linux + NVIDIA GPU (CUDA 12.6):
+#     pip install torch --index-url https://download.pytorch.org/whl/cu126
 #
-#   Apple Silicon Mac (M1/M2/M3/M4) - MPS acceleration, default wheels:
-#     pip install torch==2.3.1 torchvision==0.18.1
+#   Apple Silicon Mac (M1/M2/M3/M4) - MPS acceleration:
+#     pip install torch
 #
 #   CPU-only (any OS):
-#     pip install torch==2.3.1 torchvision==0.18.1 --index-url https://download.pytorch.org/whl/cpu
+#     pip install torch --index-url https://download.pytorch.org/whl/cpu
 #
 # Then: pip install -r requirements.txt
-# (torch/torchvision are listed below too, so a plain `pip install -r` also works
-#  and will pull the default CPU/MPS wheels if you skipped the step above.)
+# (torch is also listed below, so a plain `pip install -r` still works and
+#  will pull the default CPU wheel if you skipped the step above.)
 
 # --- Core image stack ---
-numpy==1.26.4
-Pillow==10.4.0
-opencv-python-headless==4.10.0.84   # headless avoids a double-cv2 clash with rembg
-scipy==1.13.1
+numpy>=2.3.0,<3.0.0
+Pillow>=12.1.0,<13.0.0
+opencv-python-headless>=4.10.0.84
+scipy>=1.16.3,<2.0.0
 
 # --- Stage 1: background removal (BiRefNet) + alpha matting / decontamination ---
-rembg==2.0.59
-onnxruntime==1.18.1        # CPU + CoreML (Apple). For NVIDIA: see README (onnxruntime-gpu)
-pymatting==1.1.12          # estimate_foreground_ml (decontamination) + closed-form matte
-numba==0.60.0              # pymatting backend; pinned for numpy 1.26 compatibility
+rembg>=2.0.76
+onnxruntime>=1.23.2,<2.0.0        # CPU + CoreML (Apple). For NVIDIA: install onnxruntime-gpu instead
+pymatting>=1.1.14,<2.0.0          # estimate_foreground_ml (decontamination) + closed-form matte
 
 # --- Stage 2: upscaling (Real-ESRGAN) ---
-torch==2.3.1               # see header for the correct GPU/MPS/CPU install command
-torchvision==0.18.1
-basicsr==1.4.2             # provides RRDBNet; functional_tensor import is shimmed in code
-realesrgan==0.3.0
+# RRDBNet and SRVGGNet architectures are inlined in dtf_pipeline/upscale.py,
+# so basicsr and realesrgan are no longer required.
+# torchvision is also no longer required (it was only needed for a basicsr shim).
+torch>=2.9.0                       # see header for the correct GPU/MPS/CPU install command
